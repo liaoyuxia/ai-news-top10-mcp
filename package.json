@@ -1,0 +1,25 @@
+{
+  "name": "ai-news-top10-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that generates a daily Top 10 list of latest AI news from RSS/Google News.",
+  "type": "module",
+  "bin": {
+    "ai-news-top10-mcp": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "daily": "node src/news.js --markdown",
+    "feishu:daily": "node scripts/feishu-daily.mjs",
+    "feishu:test": "node scripts/feishu-test.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "node --check src/index.js && node --check src/news.js && node --check src/feishu.js && node --check src/env.js && node --check scripts/smoke.mjs && node --check scripts/feishu-test.mjs && node --check scripts/feishu-daily.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.13.0",
+    "google-news-decoder": "^1.0.1",
+    "zod": "^3.25.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
