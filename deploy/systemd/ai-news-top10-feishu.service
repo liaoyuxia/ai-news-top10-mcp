@@ -1,0 +1,11 @@
+[Unit]
+Description=Send AI news Top 10 daily brief to Feishu
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/ai-news-top10-mcp
+Environment=NODE_ENV=production
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/env npm run feishu:daily

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run AI news Top 10 Feishu brief every morning
+
+[Timer]
+OnCalendar=*-*-* 08:30:00
+Persistent=true
+Unit=ai-news-top10-feishu.service
+
+[Install]
+WantedBy=timers.target

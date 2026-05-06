@@ -139,6 +139,60 @@ launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.liaowubing.ai-news-top
 rm ~/Library/LaunchAgents/com.liaowubing.ai-news-top10.feishu.daily.plist
 ```
 
+## Linux 服务器每日定时推送
+
+项目内提供了 `systemd` 配置，默认按服务器本地时区每天 `08:30` 执行飞书日报推送。`systemd` 是 Linux 常用的系统服务管理器，`timer` 是它的定时任务组件。
+
+确认服务器时区：
+
+```bash
+timedatectl
+```
+
+如果不是 `Asia/Shanghai`，可以设置为北京时间：
+
+```bash
+timedatectl set-timezone Asia/Shanghai
+```
+
+安装定时任务：
+
+```bash
+cd /root/ai-news-top10-mcp
+cp deploy/systemd/ai-news-top10-feishu.service /etc/systemd/system/
+cp deploy/systemd/ai-news-top10-feishu.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now ai-news-top10-feishu.timer
+```
+
+立即手动触发一次：
+
+```bash
+systemctl start ai-news-top10-feishu.service
+```
+
+查看定时状态：
+
+```bash
+systemctl status ai-news-top10-feishu.timer
+systemctl list-timers ai-news-top10-feishu.timer
+```
+
+查看执行日志：
+
+```bash
+journalctl -u ai-news-top10-feishu.service -n 100 --no-pager
+```
+
+卸载服务器定时任务：
+
+```bash
+systemctl disable --now ai-news-top10-feishu.timer
+rm /etc/systemd/system/ai-news-top10-feishu.service
+rm /etc/systemd/system/ai-news-top10-feishu.timer
+systemctl daemon-reload
+```
+
 ## 排序与过滤规则
 
 当前版本没有调用大模型，使用规则做编辑筛选：
