@@ -93,6 +93,9 @@ NEWS_CANDIDATE_LIMIT=50 \
 NEWS_MAX_PER_HOST=2 \
 NEWS_VERIFY_ARTICLE_DATES=true \
 NEWS_TRANSLATE_ENGLISH_TITLES=true \
+NEWS_TRANSLATION_PROVIDERS=baidu,google,mymemory \
+NEWS_INCLUDE_GOOGLE_NEWS=true \
+NEWS_INCLUDE_FAILED_FEEDS=false \
 npm run feishu:daily
 ```
 
@@ -142,7 +145,11 @@ rm ~/Library/LaunchAgents/com.liaowubing.ai-news-top10.feishu.daily.plist
 
 - 候选池默认取前 `50` 条，再输出 Top 10
 - `NEWS_LANGUAGE=mixed` 会同时拉取中文和英文 Google News 候选
+- `NEWS_INCLUDE_GOOGLE_NEWS=false` 可关闭 Google News 候选，适合无法访问 `news.google.com` 的服务器
+- `NEWS_INCLUDE_FAILED_FEEDS=true` 会把抓取失败的数据源追加到飞书消息里，适合排查问题
 - 入选的英文标题会翻译成中文展示，英文原题保留在结构化结果里
+- `NEWS_TRANSLATION_PROVIDERS=baidu,google,mymemory` 会按顺序尝试翻译服务。国内服务器推荐配置百度翻译密钥
+- `BAIDU_TRANSLATE_APP_ID` / `BAIDU_TRANSLATE_SECRET` 是百度翻译开放平台的 App ID 和密钥，用于服务器无法访问 Google Translate 时稳定翻译英文标题
 - 默认会抓取候选原文页面，优先使用原文发布时间而不是 RSS/Google News 聚合时间
 - 官方源、一线科技媒体、AI 垂直媒体、中文科技/财经媒体有不同来源权重
 - 聚合站和低质量站点会降权

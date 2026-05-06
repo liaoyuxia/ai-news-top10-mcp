@@ -10,6 +10,15 @@ const candidateLimit = Number.parseInt(process.env.NEWS_CANDIDATE_LIMIT || "50",
 const maxPerHost = Number.parseInt(process.env.NEWS_MAX_PER_HOST || "2", 10);
 const verifyArticleDates = process.env.NEWS_VERIFY_ARTICLE_DATES !== "false";
 const translateEnglishTitles = process.env.NEWS_TRANSLATE_ENGLISH_TITLES !== "false";
+const parsedTranslationProviders = (process.env.NEWS_TRANSLATION_PROVIDERS || "baidu,google,mymemory")
+  .split(",")
+  .map((provider) => provider.trim().toLowerCase())
+  .filter((provider) => ["baidu", "google", "mymemory"].includes(provider));
+const translationProviders = parsedTranslationProviders.length
+  ? parsedTranslationProviders
+  : ["baidu", "google", "mymemory"];
+const includeGoogleNews = process.env.NEWS_INCLUDE_GOOGLE_NEWS !== "false";
+const includeFailedFeeds = process.env.NEWS_INCLUDE_FAILED_FEEDS === "true";
 const language = ["zh", "en", "mixed"].includes(process.env.NEWS_LANGUAGE)
   ? process.env.NEWS_LANGUAGE
   : "mixed";
@@ -23,7 +32,9 @@ try {
     maxPerHost,
     verifyArticleDates,
     translateEnglishTitles,
-    includeFailedFeeds: true
+    translationProviders,
+    includeGoogleNews,
+    includeFailedFeeds
   });
 
   const post = buildDailyNewsPost(result);

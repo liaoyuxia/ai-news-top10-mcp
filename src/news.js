@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import GoogleNewsDecoder from "google-news-decoder";
 
 const DEFAULT_USER_AGENT =
@@ -218,16 +219,17 @@ function googleNewsUrl(query, config) {
   return `https://news.google.com/rss/search?${params.toString()}`;
 }
 
-function buildFeedList(language = "mixed") {
+function buildFeedList(language = "mixed", options = {}) {
+  const { includeGoogleNews = true } = options;
   const languages = language === "zh" ? ["zh"] : language === "en" ? ["en"] : ["zh", "en"];
-  const googleFeeds = languages.flatMap((itemLanguage) => {
+  const googleFeeds = includeGoogleNews ? languages.flatMap((itemLanguage) => {
     const config = GOOGLE_NEWS_CONFIG[itemLanguage];
     return config.queries.map((query) => ({
       name: `Google News ${itemLanguage}: ${query.replace(" when:1d", "")}`,
       url: googleNewsUrl(query, config),
       weight: itemLanguage === "en" ? 11 : 10
     }));
-  });
+  }) : [];
 
   return [...googleFeeds, ...DIRECT_FEEDS];
 }
@@ -242,7 +244,9 @@ function decodeXml(value = "") {
     .replaceAll("&nbsp;", " ")
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'")
-    .replaceAll("&apos;", "'");
+    .replaceAll("&apos;", "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
 }
 
 function stripHtml(value = "") {
@@ -602,6 +606,27 @@ function isLikelyEnglishTitle(title = "") {
 }
 
 async function translateTextToZh(text, timeoutMs) {
+  return translateTextToZhWithProviders(text, timeoutMs, ["baidu", "google", "mymemory"]);
+}
+
+async function translateTextToZhWithProviders(text, timeoutMs, providers = ["baidu", "google", "mymemory"]) {
+  for (const provider of providers) {
+    const translatedText = await translateTextWithProvider(text, timeoutMs, provider);
+    if (translatedText && translatedText !== text && !isLikelyEnglishTitle(translatedText)) {
+      return translatedText;
+    }
+  }
+
+  return "";
+}
+
+async function translateTextWithProvider(text, timeoutMs, provider) {
+  if (provider === "baidu") return translateTextWithBaidu(text, timeoutMs);
+  if (provider === "mymemory") return translateTextWithMyMemory(text, timeoutMs);
+  return translateTextWithGoogle(text, timeoutMs);
+}
+
+async function translateTextWithGoogle(text, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -631,8 +656,75 @@ async function translateTextToZh(text, timeoutMs) {
   }
 }
 
+async function translateTextWithBaidu(text, timeoutMs) {
+  const appId = process.env.BAIDU_TRANSLATE_APP_ID || process.env.NEWS_BAIDU_TRANSLATE_APP_ID || "";
+  const secret = process.env.BAIDU_TRANSLATE_SECRET || process.env.NEWS_BAIDU_TRANSLATE_SECRET || "";
+  if (!appId || !secret) return "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const salt = `${Date.now()}${Math.floor(Math.random() * 100000)}`;
+    const sign = createHash("md5")
+      .update(`${appId}${text}${salt}${secret}`)
+      .digest("hex");
+    const params = new URLSearchParams({
+      q: text,
+      from: "en",
+      to: "zh",
+      appid: appId,
+      salt,
+      sign
+    });
+    const response = await fetch(`https://fanyi-api.baidu.com/api/trans/vip/translate?${params}`, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": DEFAULT_USER_AGENT
+      }
+    });
+    if (!response.ok) return "";
+    const payload = await response.json();
+    return stripHtml((payload?.trans_result || []).map((item) => item?.dst || "").join(" "));
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function translateTextWithMyMemory(text, timeoutMs) {
+  if (Buffer.byteLength(text, "utf8") > 500) return "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const params = new URLSearchParams({
+      q: text,
+      langpair: "en|zh-CN"
+    });
+    const response = await fetch(`https://api.mymemory.translated.net/get?${params}`, {
+      signal: controller.signal,
+      headers: {
+        "user-agent": DEFAULT_USER_AGENT
+      }
+    });
+    if (!response.ok) return "";
+    const payload = await response.json();
+    if (payload?.responseStatus && payload.responseStatus !== 200) return "";
+    return stripHtml(payload?.responseData?.translatedText || "");
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function addDisplayTitles(items, options = {}) {
-  const { translateEnglishTitles = true, translationTimeoutMs = 5000 } = options;
+  const {
+    translateEnglishTitles = true,
+    translationTimeoutMs = 5000,
+    translationProviders = ["google", "mymemory"]
+  } = options;
   if (!translateEnglishTitles) {
     return items.map((item) => ({
       ...item,
@@ -649,7 +741,11 @@ async function addDisplayTitles(items, options = {}) {
         };
       }
 
-      const translatedTitle = await translateTextToZh(item.title, translationTimeoutMs);
+      const translatedTitle = await translateTextToZhWithProviders(
+        item.title,
+        translationTimeoutMs,
+        translationProviders
+      );
       return {
         ...item,
         originalTitle: item.title,
@@ -884,12 +980,14 @@ export async function getDailyAiNewsTop10(options = {}) {
     articleFetchTimeoutMs = 6000,
     translateEnglishTitles = true,
     translationTimeoutMs = 5000,
+    translationProviders = ["google", "mymemory"],
+    includeGoogleNews = true,
     timeoutMs = 8000,
     includeFailedFeeds = false
   } = options;
 
   const now = new Date();
-  const feeds = buildFeedList(language);
+  const feeds = buildFeedList(language, { includeGoogleNews });
   const results = await Promise.allSettled(
     feeds.map(async (feed) => {
       try {
@@ -959,7 +1057,8 @@ export async function getDailyAiNewsTop10(options = {}) {
     ),
     {
       translateEnglishTitles,
-      translationTimeoutMs
+      translationTimeoutMs,
+      translationProviders
     }
   );
 

@@ -2,7 +2,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { loadDotEnv } from "./env.js";
 import { formatNewsMarkdown, getDailyAiNewsTop10 } from "./news.js";
+
+loadDotEnv();
 
 const server = new McpServer(
   {
@@ -52,6 +55,10 @@ server.registerTool(
         .boolean()
         .default(true)
         .describe("Translate selected English titles to Chinese for display without using an LLM."),
+      translationProviders: z
+        .array(z.enum(["baidu", "google", "mymemory"]))
+        .default(["baidu", "google", "mymemory"])
+        .describe("Translation providers to try in order."),
       verifyArticleDates: z
         .boolean()
         .default(true)
@@ -69,6 +76,7 @@ server.registerTool(
     candidateLimit,
     maxPerHost,
     translateEnglishTitles,
+    translationProviders,
     verifyArticleDates,
     includeFailedFeeds
   }) => {
@@ -80,6 +88,7 @@ server.registerTool(
       maxPerHost,
       verifyArticleDates,
       translateEnglishTitles,
+      translationProviders,
       includeFailedFeeds
     });
 
