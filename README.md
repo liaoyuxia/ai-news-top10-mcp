@@ -221,7 +221,7 @@ systemctl daemon-reload
     "ai-news-top10": {
       "command": "node",
       "args": [
-        "/Users/liaowubing/Documents/codex_workspace/makemoney/ai-news-top10-mcp/src/index.js"
+        "/Users/lwb/ai-news-top10-mcp/src/index.js"
       ]
     }
   }
@@ -233,7 +233,7 @@ systemctl daemon-reload
 MCP Server 本身通常不负责定时调度，定时任务应由客户端、系统任务或自动化工具触发。最简单的方式是每天运行：
 
 ```bash
-cd /Users/liaowubing/Documents/codex_workspace/makemoney/ai-news-top10-mcp
+cd /Users/lwb/ai-news-top10-mcp
 npm run daily
 ```
 
